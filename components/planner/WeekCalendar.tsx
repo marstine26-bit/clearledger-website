@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Activity, Goal, TimeBlock } from '@/lib/planner/types';
 import { formatDateLabel, minutesToTime, timeToMinutes, todayStr } from '@/lib/planner/scheduling';
 
@@ -79,11 +80,21 @@ export default function WeekCalendar({
   onBlockClick: (block: EnrichedBlock) => void;
 }) {
   const today = todayStr();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Land on today's column instead of always opening on Monday — on a phone-width screen
+  // only 2-3 columns are visible at once, so without this "today" could be scrolled off.
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const todayCol = container.querySelector<HTMLElement>(`[data-date="${today}"]`);
+    todayCol?.scrollIntoView({ block: 'nearest', inline: 'start' });
+  }, [today]);
 
   return (
     <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
       {/* time gutter */}
-      <div style={{ width: 52, flexShrink: 0, borderRight: '1px solid #f3f4f6' }}>
+      <div className="cal-gutter" style={{ width: 52, flexShrink: 0, borderRight: '1px solid #f3f4f6' }}>
         <div style={{ height: 36, borderBottom: '1px solid #f3f4f6' }} />
         {Array.from({ length: TOTAL_HOURS }, (_, i) => (
           <div key={i} style={{ height: HOUR_HEIGHT, borderBottom: '1px solid #f9fafb', position: 'relative' }}>
@@ -95,12 +106,12 @@ export default function WeekCalendar({
       </div>
 
       {/* day columns */}
-      <div style={{ display: 'flex', flex: 1, overflowX: 'auto' }}>
+      <div ref={scrollRef} style={{ display: 'flex', flex: 1, minWidth: 0, overflowX: 'auto', scrollSnapType: 'x proximity' }}>
         {weekDates.map((date) => {
           const isToday = date === today;
           const blocks = blocksByDate.get(date) ?? [];
           return (
-            <div key={date} style={{ flex: '1 0 120px', minWidth: 120, borderRight: '1px solid #f3f4f6', position: 'relative' }}>
+            <div key={date} data-date={date} className="cal-day-col" style={{ flex: '1 0 120px', minWidth: 120, borderRight: '1px solid #f3f4f6', position: 'relative' }}>
               <div style={{
                 height: 36, borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.75rem', fontWeight: 700, color: isToday ? '#4338ca' : '#374151', background: isToday ? '#eef2ff' : '#fafafa',
@@ -161,7 +172,13 @@ export default function WeekCalendar({
         })}
       </div>
 
-      <style>{`.cal-slot:hover { background: #f5f5ff; }`}</style>
+      <style>{`
+        .cal-slot:hover { background: #f5f5ff; }
+        @media (max-width: 700px) {
+          .cal-gutter { width: 40px !important; }
+          .cal-day-col { flex-basis: 92px !important; min-width: 92px !important; scroll-snap-align: start; }
+        }
+      `}</style>
     </div>
   );
 }

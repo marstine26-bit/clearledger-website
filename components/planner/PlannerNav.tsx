@@ -25,7 +25,16 @@ export default function PlannerNav() {
           <Compass size={20} style={{ color: '#6366f1' }} />
           Compass
         </Link>
-        <div style={{ display: 'flex', gap: 4, overflowX: 'auto' }}>
+        <div
+          style={{
+            display: 'flex', gap: 4, overflowX: 'auto', flex: '1 1 auto', minWidth: 0,
+            // Fades the trailing edge so a partially-cut-off tab reads as "more to scroll"
+            // rather than looking like a layout bug, since this row can't fit all 5 tabs
+            // on a phone-width screen.
+            WebkitMaskImage: 'linear-gradient(to right, black calc(100% - 20px), transparent 100%)',
+            maskImage: 'linear-gradient(to right, black calc(100% - 20px), transparent 100%)',
+          }}
+        >
           {links.map(({ href, label, icon: Icon }) => {
             const active = href === '/planner' ? pathname === '/planner' : pathname?.startsWith(href);
             return (
