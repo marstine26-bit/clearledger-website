@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Activity, BlockStatus, Goal, PlannerState, TimeBlock } from './types';
 import { EMPTY_STATE, loadState, newId, saveState } from './storage';
-import { findNextAvailableSlot } from './scheduling';
+import { findNextAvailableSlot, findWeekFillSlots } from './scheduling';
 
 interface PlannerContextValue {
   state: PlannerState;
@@ -11,16 +11,21 @@ interface PlannerContextValue {
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'archived'>) => Goal;
   updateGoal: (id: string, patch: Partial<Goal>) => void;
   archiveGoal: (id: string) => void;
+  restoreGoal: (id: string) => void;
   addActivity: (activity: Omit<Activity, 'id' | 'createdAt' | 'archived'>) => Activity;
   updateActivity: (id: string, patch: Partial<Activity>) => void;
   archiveActivity: (id: string) => void;
+  restoreActivity: (id: string) => void;
   addBlock: (block: Omit<TimeBlock, 'id' | 'createdAt' | 'status' | 'rescheduledToId' | 'remindedAt'>) => TimeBlock;
   updateBlock: (id: string, patch: Partial<TimeBlock>) => void;
   setBlockStatus: (id: string, status: BlockStatus) => void;
   deleteBlock: (id: string) => void;
   markReminded: (id: string) => void;
+  autoFillWeek: (activityId: string, weekDates: string[]) => number;
   loadExampleData: () => void;
   resetAll: () => void;
+  exportData: () => string;
+  importData: (json: string) => boolean;
 }
 
 const PlannerContext = createContext<PlannerContextValue | null>(null);
@@ -60,6 +65,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const restoreGoal = useCallback((id: string) => {
+    setState((s) => ({
+      ...s,
+      goals: s.goals.map((g) => (g.id === id ? { ...g, archived: false } : g)),
+      activities: s.activities.map((a) => (a.goalId === id ? { ...a, archived: false } : a)),
+    }));
+  }, []);
+
   const addActivity = useCallback((activity: Omit<Activity, 'id' | 'createdAt' | 'archived'>) => {
     const newActivity: Activity = { ...activity, id: newId(), createdAt: new Date().toISOString(), archived: false };
     setState((s) => ({ ...s, activities: [...s.activities, newActivity] }));
@@ -72,6 +85,10 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   const archiveActivity = useCallback((id: string) => {
     setState((s) => ({ ...s, activities: s.activities.map((a) => (a.id === id ? { ...a, archived: true } : a)) }));
+  }, []);
+
+  const restoreActivity = useCallback((id: string) => {
+    setState((s) => ({ ...s, activities: s.activities.map((a) => (a.id === id ? { ...a, archived: false } : a)) }));
   }, []);
 
   const addBlock = useCallback((block: Omit<TimeBlock, 'id' | 'createdAt' | 'status' | 'rescheduledToId' | 'remindedAt'>) => {
@@ -130,6 +147,37 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Reads `state` directly (rather than the functional setState form) because it needs to
+  // return the number of blocks it placed synchronously — the functional updater form only
+  // runs during React's next render, too late for a return value the caller can use immediately.
+  const autoFillWeek = useCallback(
+    (activityId: string, weekDates: string[]): number => {
+      const activity = state.activities.find((a) => a.id === activityId);
+      if (!activity || !activity.isHabit || !activity.targetPerWeek) return 0;
+      const current = state.blocks.filter(
+        (b) => b.activityId === activityId && weekDates.includes(b.date) && b.status !== 'skipped' && b.status !== 'rescheduled'
+      ).length;
+      const remaining = activity.targetPerWeek - current;
+      if (remaining <= 0) return 0;
+      const slots = findWeekFillSlots(state, activity, weekDates, remaining);
+      if (slots.length === 0) return 0;
+      const newBlocks: TimeBlock[] = slots.map((slot) => ({
+        id: newId(),
+        activityId,
+        date: slot.date,
+        startTime: slot.startTime,
+        durationMinutes: activity.durationMinutes,
+        status: 'planned',
+        rescheduledToId: null,
+        remindedAt: null,
+        createdAt: new Date().toISOString(),
+      }));
+      setState((s) => ({ ...s, blocks: [...s.blocks, ...newBlocks] }));
+      return slots.length;
+    },
+    [state]
+  );
+
   const loadExampleData = useCallback(() => {
     const today = new Date();
     const iso = (offset: number, base: Date = today) => {
@@ -170,6 +218,29 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   const resetAll = useCallback(() => setState(EMPTY_STATE), []);
 
+  const exportData = useCallback(() => JSON.stringify(state, null, 2), [state]);
+
+  const importData = useCallback((json: string): boolean => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      return false;
+    }
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !Array.isArray((parsed as PlannerState).goals) ||
+      !Array.isArray((parsed as PlannerState).activities) ||
+      !Array.isArray((parsed as PlannerState).blocks)
+    ) {
+      return false;
+    }
+    const next = parsed as PlannerState;
+    setState({ goals: next.goals, activities: next.activities, blocks: next.blocks });
+    return true;
+  }, []);
+
   const value = useMemo<PlannerContextValue>(
     () => ({
       state,
@@ -177,18 +248,44 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       addGoal,
       updateGoal,
       archiveGoal,
+      restoreGoal,
       addActivity,
       updateActivity,
       archiveActivity,
+      restoreActivity,
       addBlock,
       updateBlock,
       setBlockStatus,
       deleteBlock,
       markReminded,
+      autoFillWeek,
       loadExampleData,
       resetAll,
+      exportData,
+      importData,
     }),
-    [state, hydrated, addGoal, updateGoal, archiveGoal, addActivity, updateActivity, archiveActivity, addBlock, updateBlock, setBlockStatus, deleteBlock, markReminded, loadExampleData, resetAll]
+    [
+      state,
+      hydrated,
+      addGoal,
+      updateGoal,
+      archiveGoal,
+      restoreGoal,
+      addActivity,
+      updateActivity,
+      archiveActivity,
+      restoreActivity,
+      addBlock,
+      updateBlock,
+      setBlockStatus,
+      deleteBlock,
+      markReminded,
+      autoFillWeek,
+      loadExampleData,
+      resetAll,
+      exportData,
+      importData,
+    ]
   );
 
   return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>;

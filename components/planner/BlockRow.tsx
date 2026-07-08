@@ -76,17 +76,17 @@ export default function BlockRow({
 
       {isPlanned && (
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <button onClick={onStart} title="Start focus" style={iconBtnStyle('#eef2ff', '#4338ca')}>
+          <button onClick={onStart} aria-label={`Start focus on ${activity.title}`} title="Start focus" style={iconBtnStyle('#eef2ff', '#4338ca')}>
             <Play size={14} />
           </button>
-          <button onClick={onDone} title="Mark done" style={iconBtnStyle('#f0fdf4', '#059669')}>
+          <button onClick={onDone} aria-label={`Mark ${activity.title} done`} title="Mark done" style={iconBtnStyle('#f0fdf4', '#059669')}>
             <CheckCircle2 size={14} />
           </button>
-          <button onClick={onSkip} title="Skip (auto-reschedules)" style={iconBtnStyle('#fef2f2', '#dc2626')}>
+          <button onClick={onSkip} aria-label={`Skip ${activity.title} (auto-reschedules)`} title="Skip (auto-reschedules)" style={iconBtnStyle('#fef2f2', '#dc2626')}>
             <SkipForward size={14} />
           </button>
           {onDelete && (
-            <button onClick={onDelete} title="Delete" style={iconBtnStyle('#f9fafb', '#6b7280')}>
+            <button onClick={onDelete} aria-label={`Delete ${activity.title} block`} title="Delete" style={iconBtnStyle('#f9fafb', '#6b7280')}>
               <Trash2 size={14} />
             </button>
           )}

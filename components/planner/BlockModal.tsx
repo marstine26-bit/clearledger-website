@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Activity, Goal, TimeBlock } from '@/lib/planner/types';
 import Modal, { inputStyle, labelStyle, primaryBtnStyle } from './Modal';
 import { formatDateLabel } from '@/lib/planner/scheduling';
-import { CheckCircle2, Play, SkipForward, Trash2 } from 'lucide-react';
+import { CheckCircle2, Play, SkipForward, Trash2, RotateCcw, Save } from 'lucide-react';
 
 export default function BlockModal({
   date,
@@ -16,6 +16,7 @@ export default function BlockModal({
   goals,
   onClose,
   onCreate,
+  onUpdate,
   onDelete,
   onStatusChange,
   onStartFocus,
@@ -29,6 +30,7 @@ export default function BlockModal({
   goals: Goal[];
   onClose: () => void;
   onCreate: (data: { activityId: string; date: string; startTime: string; durationMinutes: number }) => void;
+  onUpdate?: (id: string, patch: Partial<TimeBlock>) => void;
   onDelete?: (id: string) => void;
   onStatusChange?: (id: string, status: TimeBlock['status']) => void;
   onStartFocus?: () => void;
@@ -39,34 +41,69 @@ export default function BlockModal({
   const [duration, setDuration] = useState(
     existing?.durationMinutes ?? eligibleActivities.find((a) => a.id === activityId)?.durationMinutes ?? 30
   );
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (existing) {
+    const dirty = time !== existing.startTime || duration !== existing.durationMinutes;
     return (
       <Modal title={existingActivity?.title ?? 'Time block'} onClose={onClose}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {existingGoal && <span style={{ fontSize: '0.8rem', fontWeight: 600, color: existingGoal.color }}>{existingGoal.title}</span>}
           <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-            {formatDateLabel(existing.date)} at {existing.startTime} &middot; {existing.durationMinutes} min &middot; status: <strong>{existing.status}</strong>
+            {formatDateLabel(existing.date)} &middot; status: <strong>{existing.status}</strong>
           </p>
 
-          {existing.status === 'planned' && (
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Start time</label>
+              <input style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Duration (min)</label>
+              <input style={inputStyle} type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+            </div>
+          </div>
+          {dirty && onUpdate && (
+            <button
+              onClick={() => onUpdate(existing.id, { startTime: time, durationMinutes: duration })}
+              style={{ ...smallBtn('#111827', '#fff'), justifyContent: 'center' }}
+            >
+              <Save size={14} /> Save time change
+            </button>
+          )}
+
+          {onStatusChange && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {onStartFocus && (
+              {existing.status === 'planned' && onStartFocus && (
                 <button onClick={onStartFocus} style={smallBtn('#eef2ff', '#4338ca')}><Play size={14} /> Start focus</button>
               )}
-              {onStatusChange && (
-                <>
-                  <button onClick={() => onStatusChange(existing.id, 'done')} style={smallBtn('#f0fdf4', '#059669')}><CheckCircle2 size={14} /> Mark done</button>
-                  <button onClick={() => onStatusChange(existing.id, 'skipped')} style={smallBtn('#fef2f2', '#dc2626')}><SkipForward size={14} /> Skip</button>
-                </>
+              {existing.status !== 'done' && (
+                <button onClick={() => onStatusChange(existing.id, 'done')} style={smallBtn('#f0fdf4', '#059669')}><CheckCircle2 size={14} /> Mark done</button>
+              )}
+              {existing.status !== 'skipped' && (
+                <button onClick={() => onStatusChange(existing.id, 'skipped')} style={smallBtn('#fef2f2', '#dc2626')}><SkipForward size={14} /> Skip</button>
+              )}
+              {existing.status !== 'planned' && (
+                <button onClick={() => onStatusChange(existing.id, 'planned')} style={smallBtn('#f9fafb', '#374151')}><RotateCcw size={14} /> Undo, mark planned</button>
               )}
             </div>
           )}
 
           {onDelete && (
-            <button onClick={() => onDelete(existing.id)} style={{ ...smallBtn('#f9fafb', '#6b7280'), justifyContent: 'center' }}>
-              <Trash2 size={14} /> Delete block
-            </button>
+            !confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} style={{ ...smallBtn('#f9fafb', '#6b7280'), justifyContent: 'center' }}>
+                <Trash2 size={14} /> Delete block
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => onDelete(existing.id)} style={{ ...smallBtn('#dc2626', '#fff'), flex: 1, justifyContent: 'center' }}>
+                  Confirm delete
+                </button>
+                <button onClick={() => setConfirmDelete(false)} style={{ ...smallBtn('#f9fafb', '#6b7280'), flex: 1, justifyContent: 'center' }}>
+                  Cancel
+                </button>
+              </div>
+            )
           )}
         </div>
       </Modal>

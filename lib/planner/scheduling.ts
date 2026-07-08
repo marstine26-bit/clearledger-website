@@ -130,6 +130,68 @@ export function isDueNow(block: TimeBlock, now: Date = new Date()): boolean {
   return nowMins >= startMins - 1 && nowMins <= startMins + 5;
 }
 
+/** Blocks still "on the books" for an activity this week (excludes skipped/rescheduled). */
+export function computeActivityWeekCount(blocks: TimeBlock[], activityId: string, weekDates: string[]): number {
+  return blocks.filter(
+    (b) => b.activityId === activityId && weekDates.includes(b.date) && b.status !== 'skipped' && b.status !== 'rescheduled'
+  ).length;
+}
+
+function mostCommonStartTime(blocks: TimeBlock[], activityId: string): string | null {
+  const counts = new Map<string, number>();
+  for (const b of blocks) {
+    if (b.activityId !== activityId) continue;
+    counts.set(b.startTime, (counts.get(b.startTime) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [time, count] of counts) {
+    if (count > bestCount) {
+      best = time;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * Finds up to `count` open slots within `weekDates` for a habit that hasn't hit its
+ * weekly target yet — one slot per day, skipping days already scheduled and days in the past.
+ */
+export function findWeekFillSlots(
+  state: PlannerState,
+  activity: Activity,
+  weekDates: string[],
+  count: number
+): { date: string; startTime: string }[] {
+  const today = todayStr();
+  const used = new Set(
+    state.blocks
+      .filter((b) => b.activityId === activity.id && weekDates.includes(b.date) && b.status !== 'skipped' && b.status !== 'rescheduled')
+      .map((b) => b.date)
+  );
+  const preferred = mostCommonStartTime(state.blocks, activity.id) ?? '08:00';
+  const dur = activity.durationMinutes;
+  const results: { date: string; startTime: string }[] = [];
+
+  for (const date of weekDates) {
+    if (results.length >= count) break;
+    if (date < today || used.has(date)) continue;
+    const dayBlocks = state.blocks.filter((b) => b.date === date && b.status !== 'skipped' && b.status !== 'rescheduled');
+    const candidates: number[] = [timeToMinutes(preferred)];
+    for (let t = DAY_START; t <= DAY_END - dur; t += STEP) candidates.push(t);
+    for (const startMins of candidates) {
+      if (startMins < DAY_START || startMins + dur > DAY_END) continue;
+      const conflict = dayBlocks.some((b) => blocksOverlap(startMins, dur, timeToMinutes(b.startTime), b.durationMinutes));
+      if (!conflict) {
+        results.push({ date, startTime: minutesToTime(startMins) });
+        break;
+      }
+    }
+  }
+  return results;
+}
+
 export interface WeekGoalStat {
   goalId: string;
   plannedMinutes: number;

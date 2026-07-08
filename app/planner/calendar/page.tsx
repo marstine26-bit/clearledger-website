@@ -9,7 +9,7 @@ import { addDays, formatDateLabel, getWeekDates, startOfWeek, todayStr } from '@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function CalendarPage() {
-  const { state, hydrated, addBlock, deleteBlock, setBlockStatus } = usePlanner();
+  const { state, hydrated, addBlock, updateBlock, deleteBlock, setBlockStatus } = usePlanner();
   const { startFocus } = useFocusLock();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(todayStr()));
   const [creating, setCreating] = useState<{ date: string; time: string } | null>(null);
@@ -86,6 +86,7 @@ export default function CalendarPage() {
           goals={state.goals.filter((g) => !g.archived)}
           onClose={() => setEditing(null)}
           onCreate={() => {}}
+          onUpdate={(id, patch) => { updateBlock(id, patch); setEditing(null); }}
           onDelete={(id) => { deleteBlock(id); setEditing(null); }}
           onStatusChange={(id, status) => { setBlockStatus(id, status); setEditing(null); }}
           onStartFocus={editing.activity ? () => { startFocus(editing, editing.activity!, editing.goal); setEditing(null); } : undefined}

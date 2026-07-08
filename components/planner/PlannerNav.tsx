@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Compass, LayoutDashboard, Target, CalendarDays, ListChecks, BarChart3 } from 'lucide-react';
+import { Compass, LayoutDashboard, Target, CalendarDays, ListChecks, BarChart3, Settings } from 'lucide-react';
+import SettingsModal from './SettingsModal';
 
 const links = [
   { href: '/planner', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,6 +16,7 @@ const links = [
 
 export default function PlannerNav() {
   const pathname = usePathname();
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <nav style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -42,7 +45,20 @@ export default function PlannerNav() {
             );
           })}
         </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          aria-label="Settings & data"
+          title="Settings & data"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 34, height: 34, borderRadius: 7, border: '1px solid #e5e7eb',
+            background: '#fff', color: '#6b7280', cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          <Settings size={16} />
+        </button>
       </div>
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </nav>
   );
 }

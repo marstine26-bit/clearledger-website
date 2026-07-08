@@ -9,12 +9,15 @@ export default function Modal({ title, onClose, children }: { title: string; onC
       style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
         style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid #f3f4f6' }}>
           <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#111827' }}>{title}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex' }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex' }}>
             <X size={20} />
           </button>
         </div>

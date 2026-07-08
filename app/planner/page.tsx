@@ -1,15 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { usePlanner } from '@/lib/planner/store';
 import { useFocusLock } from '@/components/planner/FocusLock';
 import BlockRow from '@/components/planner/BlockRow';
-import { computeStreak, computeWeekStats, formatDateLabel, getWeekDates, startOfWeek, todayStr } from '@/lib/planner/scheduling';
-import { Compass, Plus, Sparkles, Target } from 'lucide-react';
+import { computeActivityWeekCount, computeStreak, computeWeekStats, formatDateLabel, getWeekDates, startOfWeek, todayStr } from '@/lib/planner/scheduling';
+import { Compass, Plus, Sparkles, Target, AlertCircle } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { state, hydrated, setBlockStatus, deleteBlock, loadExampleData } = usePlanner();
+  const { state, hydrated, setBlockStatus, deleteBlock, loadExampleData, autoFillWeek } = usePlanner();
   const { startFocus } = useFocusLock();
+  const [fillNotice, setFillNotice] = useState<string | null>(null);
 
   if (!hydrated) return null;
 
@@ -52,12 +54,52 @@ export default function DashboardPage() {
     .sort((a, b) => b.streak - a.streak)
     .slice(0, 4);
 
+  const behindHabits = state.activities
+    .filter((a) => !a.archived && a.isHabit && (a.targetPerWeek ?? 0) > 0)
+    .map((a) => ({ activity: a, goal: state.goals.find((g) => g.id === a.goalId), scheduled: computeActivityWeekCount(state.blocks, a.id, weekDates) }))
+    .filter((x) => x.scheduled < (x.activity.targetPerWeek ?? 0));
+
+  const handleAutoFill = (activityId: string, title: string) => {
+    const added = autoFillWeek(activityId, weekDates);
+    setFillNotice(added > 0 ? `Scheduled ${added} more ${title} session${added > 1 ? 's' : ''} this week.` : `Couldn't find an open slot this week for ${title}.`);
+    setTimeout(() => setFillNotice(null), 4000);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <div>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', marginBottom: 4 }}>Today</h1>
         <p style={{ fontSize: '0.9rem', color: '#6b7280' }}>{formatDateLabel(today)}</p>
       </div>
+
+      {behindHabits.length > 0 && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '14px 18px' }}>
+          <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AlertCircle size={15} /> Falling behind this week
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {behindHabits.map(({ activity, goal, scheduled }) => (
+              <div key={activity.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: '#78350f' }}>
+                  <strong>{activity.title}</strong>{goal ? ` (${goal.title})` : ''} &mdash; {scheduled}/{activity.targetPerWeek} scheduled
+                </span>
+                <button
+                  onClick={() => handleAutoFill(activity.id, activity.title)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#92400e', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <Sparkles size={12} /> Auto-fill
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {fillNotice && (
+        <div style={{ padding: '10px 16px', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 8, fontSize: '0.85rem', color: '#4338ca' }}>
+          {fillNotice}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 24 }} className="dash-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
