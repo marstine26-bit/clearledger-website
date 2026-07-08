@@ -21,6 +21,8 @@ export default function ReportsPage() {
   const completionRate = totalBlocks === 0 ? 0 : Math.round((totalDoneCount / totalBlocks) * 100);
   const maxPlanned = Math.max(1, ...stats.map((s) => s.plannedMinutes));
 
+  const unscheduledGoals = state.goals.filter((g) => !g.archived && (stats.find((s) => s.goalId === g.id)?.plannedMinutes ?? 0) === 0);
+
   const leaderboard = state.activities
     .filter((a) => !a.archived && a.isHabit)
     .map((a) => ({ activity: a, goal: state.goals.find((g) => g.id === a.goalId), streak: computeStreak(state.blocks, a.id) }))
@@ -78,6 +80,11 @@ export default function ReportsPage() {
               );
             })}
           </div>
+        )}
+        {stats.length > 0 && totalPlanned > 0 && unscheduledGoals.length > 0 && (
+          <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 16, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
+            Nothing scheduled this week for {unscheduledGoals.map((g) => g.title).join(', ')}.
+          </p>
         )}
       </div>
 

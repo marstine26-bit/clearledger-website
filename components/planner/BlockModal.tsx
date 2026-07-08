@@ -6,6 +6,10 @@ import Modal, { inputStyle, labelStyle, primaryBtnStyle } from './Modal';
 import { formatDateLabel } from '@/lib/planner/scheduling';
 import { CheckCircle2, Play, SkipForward, Trash2, RotateCcw, Save } from 'lucide-react';
 
+function clampDuration(value: number): number {
+  return Math.min(480, Math.max(5, Math.round(value) || 30));
+}
+
 export default function BlockModal({
   date,
   startTime,
@@ -55,17 +59,17 @@ export default function BlockModal({
 
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Start time</label>
-              <input style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              <label style={labelStyle} htmlFor="block-edit-time">Start time</label>
+              <input id="block-edit-time" style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Duration (min)</label>
-              <input style={inputStyle} type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+              <label style={labelStyle} htmlFor="block-edit-duration">Duration (min)</label>
+              <input id="block-edit-duration" style={inputStyle} type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
             </div>
           </div>
           {dirty && onUpdate && (
             <button
-              onClick={() => onUpdate(existing.id, { startTime: time, durationMinutes: duration })}
+              onClick={() => onUpdate(existing.id, { startTime: time, durationMinutes: clampDuration(duration) })}
               style={{ ...smallBtn('#111827', '#fff'), justifyContent: 'center' }}
             >
               <Save size={14} /> Save time change
@@ -113,7 +117,7 @@ export default function BlockModal({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId) return;
-    onCreate({ activityId, date, startTime: time, durationMinutes: duration });
+    onCreate({ activityId, date, startTime: time, durationMinutes: clampDuration(duration) });
   };
 
   return (
@@ -123,8 +127,9 @@ export default function BlockModal({
       ) : (
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={labelStyle}>Activity</label>
+            <label style={labelStyle} htmlFor="block-create-activity">Activity</label>
             <select
+              id="block-create-activity"
               style={inputStyle}
               value={activityId}
               onChange={(e) => {
@@ -149,12 +154,12 @@ export default function BlockModal({
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Start time</label>
-              <input style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+              <label style={labelStyle} htmlFor="block-create-time">Start time</label>
+              <input id="block-create-time" style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Duration (min)</label>
-              <input style={inputStyle} type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+              <label style={labelStyle} htmlFor="block-create-duration">Duration (min)</label>
+              <input id="block-create-duration" style={inputStyle} type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
             </div>
           </div>
           <button type="submit" style={primaryBtnStyle}>Add to calendar</button>

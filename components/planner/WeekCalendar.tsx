@@ -13,6 +13,60 @@ export interface EnrichedBlock extends TimeBlock {
   goal: Goal | undefined;
 }
 
+interface LaidOutBlock {
+  block: EnrichedBlock;
+  col: number;
+  totalCols: number;
+}
+
+/**
+ * Assigns each block a column index within its overlap cluster so simultaneous blocks
+ * render side-by-side instead of fully stacked (which silently hides all but the top one).
+ */
+function layoutDayBlocks(blocks: EnrichedBlock[]): LaidOutBlock[] {
+  const sorted = [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  const results: LaidOutBlock[] = [];
+  let cluster: LaidOutBlock[] = [];
+  let clusterEnd = -1;
+
+  const flushCluster = () => {
+    if (cluster.length === 0) return;
+    const columnEnds: number[] = [];
+    for (const item of cluster) {
+      const start = timeToMinutes(item.block.startTime);
+      let placedCol = -1;
+      for (let c = 0; c < columnEnds.length; c++) {
+        if (columnEnds[c] <= start) {
+          placedCol = c;
+          columnEnds[c] = start + item.block.durationMinutes;
+          break;
+        }
+      }
+      if (placedCol === -1) {
+        placedCol = columnEnds.length;
+        columnEnds.push(start + item.block.durationMinutes);
+      }
+      item.col = placedCol;
+    }
+    const totalCols = columnEnds.length;
+    for (const item of cluster) item.totalCols = totalCols;
+    results.push(...cluster);
+    cluster = [];
+  };
+
+  for (const block of sorted) {
+    const start = timeToMinutes(block.startTime);
+    if (cluster.length > 0 && start >= clusterEnd) {
+      flushCluster();
+      clusterEnd = -1;
+    }
+    cluster.push({ block, col: 0, totalCols: 1 });
+    clusterEnd = Math.max(clusterEnd, start + block.durationMinutes);
+  }
+  flushCluster();
+  return results;
+}
+
 export default function WeekCalendar({
   weekDates,
   blocksByDate,
@@ -71,17 +125,20 @@ export default function WeekCalendar({
                   );
                 })}
 
-                {blocks.map((block) => {
+                {layoutDayBlocks(blocks).map(({ block, col, totalCols }) => {
                   const startMins = timeToMinutes(block.startTime) - HOUR_START * 60;
                   const top = Math.max(0, (startMins / 60) * HOUR_HEIGHT);
                   const height = Math.max(20, (block.durationMinutes / 60) * HOUR_HEIGHT - 2);
                   const color = block.goal?.color ?? '#6b7280';
+                  const widthPct = 100 / totalCols;
+                  const leftPct = widthPct * col;
                   return (
                     <div
                       key={block.id}
                       onClick={(e) => { e.stopPropagation(); onBlockClick(block); }}
                       style={{
-                        position: 'absolute', top, left: 3, right: 3, height,
+                        position: 'absolute', top, height,
+                        left: `calc(${leftPct}% + 2px)`, width: `calc(${widthPct}% - 4px)`,
                         background: block.status === 'done' ? `${color}33` : block.status === 'skipped' ? '#fee2e2' : `${color}22`,
                         borderLeft: `3px solid ${color}`, borderRadius: 5, padding: '3px 6px', overflow: 'hidden', cursor: 'pointer',
                         opacity: block.status === 'skipped' ? 0.6 : 1,

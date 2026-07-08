@@ -4,6 +4,17 @@ import { useState } from 'react';
 import { Goal, GOAL_COLORS } from '@/lib/planner/types';
 import Modal, { inputStyle, labelStyle, primaryBtnStyle } from './Modal';
 
+const COLOR_NAMES: Record<string, string> = {
+  '#6366f1': 'Indigo',
+  '#059669': 'Emerald',
+  '#d97706': 'Amber',
+  '#dc2626': 'Red',
+  '#2563eb': 'Blue',
+  '#7c3aed': 'Violet',
+  '#0891b2': 'Cyan',
+  '#be185d': 'Pink',
+};
+
 export default function GoalModal({
   initial,
   onClose,
@@ -27,20 +38,21 @@ export default function GoalModal({
     <Modal title={initial ? 'Edit goal' : 'New goal'} onClose={onClose}>
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={labelStyle}>What do you want to achieve?</label>
-          <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Get fit" autoFocus required />
+          <label style={labelStyle} htmlFor="goal-title">What do you want to achieve?</label>
+          <input id="goal-title" style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Get fit" autoFocus required />
         </div>
         <div>
-          <label style={labelStyle}>Why it matters (optional)</label>
+          <label style={labelStyle} htmlFor="goal-description">Why it matters (optional)</label>
           <textarea
+            id="goal-description"
             style={{ ...inputStyle, resize: 'vertical', minHeight: 64, fontFamily: 'inherit' }}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="A short reminder of why this goal matters to you"
           />
         </div>
-        <div>
-          <label style={labelStyle}>Color</label>
+        <div role="group" aria-labelledby="goal-color-label">
+          <span id="goal-color-label" style={labelStyle}>Color</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {GOAL_COLORS.map((c) => (
               <button
@@ -52,7 +64,8 @@ export default function GoalModal({
                   border: color === c ? '3px solid #111827' : '3px solid transparent',
                   outline: color === c ? `2px solid ${c}` : 'none', outlineOffset: 1,
                 }}
-                aria-label={c}
+                aria-label={COLOR_NAMES[c] ?? c}
+                aria-pressed={color === c}
               />
             ))}
           </div>

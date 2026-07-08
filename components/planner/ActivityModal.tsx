@@ -21,19 +21,22 @@ export default function ActivityModal({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSave({ title: title.trim(), durationMinutes: duration, isHabit, targetPerWeek: isHabit ? targetPerWeek : null });
+    const safeDuration = Math.min(480, Math.max(5, Math.round(duration) || 30));
+    const safeTarget = Math.min(7, Math.max(1, Math.round(targetPerWeek) || 1));
+    onSave({ title: title.trim(), durationMinutes: safeDuration, isHabit, targetPerWeek: isHabit ? safeTarget : null });
   };
 
   return (
     <Modal title={initial ? 'Edit activity' : 'New activity'} onClose={onClose}>
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={labelStyle}>Activity</label>
-          <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Gym session" autoFocus required />
+          <label style={labelStyle} htmlFor="activity-title">Activity</label>
+          <input id="activity-title" style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Gym session" autoFocus required />
         </div>
         <div>
-          <label style={labelStyle}>Duration per session (minutes)</label>
+          <label style={labelStyle} htmlFor="activity-duration">Duration per session (minutes)</label>
           <input
+            id="activity-duration"
             style={inputStyle} type="number" min={5} max={480} step={5}
             value={duration} onChange={(e) => setDuration(Number(e.target.value))}
           />
@@ -46,8 +49,9 @@ export default function ActivityModal({
         </label>
         {isHabit && (
           <div>
-            <label style={labelStyle}>Target times per week</label>
+            <label style={labelStyle} htmlFor="activity-target">Target times per week</label>
             <input
+              id="activity-target"
               style={inputStyle} type="number" min={1} max={7}
               value={targetPerWeek} onChange={(e) => setTargetPerWeek(Number(e.target.value))}
             />

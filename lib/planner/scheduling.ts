@@ -162,9 +162,11 @@ export function findWeekFillSlots(
   state: PlannerState,
   activity: Activity,
   weekDates: string[],
-  count: number
+  count: number,
+  now: Date = new Date()
 ): { date: string; startTime: string }[] {
-  const today = todayStr();
+  const today = todayStr(now);
+  const nowMins = timeToMinutes(nowTimeStr(now));
   const used = new Set(
     state.blocks
       .filter((b) => b.activityId === activity.id && weekDates.includes(b.date) && b.status !== 'skipped' && b.status !== 'rescheduled')
@@ -177,11 +179,14 @@ export function findWeekFillSlots(
   for (const date of weekDates) {
     if (results.length >= count) break;
     if (date < today || used.has(date)) continue;
+    // For today, never place a block earlier than right now — a "scheduled" session
+    // that starts in the past would show up as instantly overdue.
+    const earliestToday = date === today ? Math.max(DAY_START, nowMins) : DAY_START;
     const dayBlocks = state.blocks.filter((b) => b.date === date && b.status !== 'skipped' && b.status !== 'rescheduled');
     const candidates: number[] = [timeToMinutes(preferred)];
     for (let t = DAY_START; t <= DAY_END - dur; t += STEP) candidates.push(t);
     for (const startMins of candidates) {
-      if (startMins < DAY_START || startMins + dur > DAY_END) continue;
+      if (startMins < earliestToday || startMins + dur > DAY_END) continue;
       const conflict = dayBlocks.some((b) => blocksOverlap(startMins, dur, timeToMinutes(b.startTime), b.durationMinutes));
       if (!conflict) {
         results.push({ date, startTime: minutesToTime(startMins) });
